@@ -12,8 +12,8 @@ import rasa.shared.utils.io
 from rasa.shared.constants import DOCS_URL_POLICIES
 from rasa.shared.core.domain import State, Domain
 from rasa.shared.core.events import ActionExecuted
-from rasa.core.featurizers.tracker_featurizers import (
-    TrackerFeaturizer,
+from rasa.core.featurizers.tracker_featurizers import TrackerFeaturizer
+from rasa.core.featurizers.max_history_tracker_featurizer import (
     MaxHistoryTrackerFeaturizer,
 )
 from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter

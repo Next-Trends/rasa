@@ -27,8 +27,10 @@ from rasa.shared.core.domain import Domain, State
 from rasa.core.featurizers.single_state_featurizer import SingleStateFeaturizer
 from rasa.core.featurizers.tracker_featurizers import (
     TrackerFeaturizer,
-    MaxHistoryTrackerFeaturizer,
     FEATURIZER_FILE,
+)
+from rasa.core.featurizers.max_history_tracker_featurizer import (
+    MaxHistoryTrackerFeaturizer,
 )
 from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter
 from rasa.shared.core.trackers import DialogueStateTracker

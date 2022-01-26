@@ -38,7 +38,9 @@ from rasa.shared.core.events import (
     DefinePrevUserUtteredFeaturization,
 )
 from rasa.core.exceptions import UnsupportedDialogueModelError
-from rasa.core.featurizers.tracker_featurizers import MaxHistoryTrackerFeaturizer
+from rasa.core.featurizers.max_history_tracker_featurizer import (
+    MaxHistoryTrackerFeaturizer,
+)
 from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter, RegexInterpreter
 from rasa.core.policies.policy import Policy, SupportedData, PolicyPrediction
 from rasa.core.policies.fallback import FallbackPolicy

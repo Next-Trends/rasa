@@ -4,7 +4,9 @@ import numpy as np
 import pytest
 
 from rasa.core.featurizers.single_state_featurizer import SingleStateFeaturizer
-from rasa.core.featurizers.tracker_featurizers import MaxHistoryTrackerFeaturizer
+from rasa.core.featurizers.max_history_tracker_featurizer import (
+    MaxHistoryTrackerFeaturizer,
+)
 from rasa.shared.core.domain import Domain
 from rasa.shared.nlu.interpreter import RegexInterpreter
 from tests.core.utilities import user_uttered
@@ -18,8 +20,6 @@ from rasa.shared.core.constants import (
 )
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.trackers import DialogueStateTracker
-from rasa.utils.tensorflow.constants import LABEL_PAD_ID
-from rasa.core.exceptions import InvalidTrackerFeaturizerUsageError
 
 
 def compare_featurized_states(
@@ -55,7 +55,7 @@ def compare_featurized_states(
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_featurize_trackers_with_max_history_tracker_featurizer(
+def test_featurize_trackers_for_states_with_action_and_intent_only(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
@@ -149,16 +149,10 @@ def test_featurize_trackers_with_max_history_tracker_featurizer(
         expected_features = [x[-max_history:] for x in expected_features]
 
     assert actual_features is not None
-    try:
-        assert len(actual_features) == len(expected_features)
-    except:
-        breakpoint()
+    assert len(actual_features) == len(expected_features)
 
     for actual, expected in zip(actual_features, expected_features):
-        try:
-            assert compare_featurized_states(actual, expected)
-        except:
-            breakpoint()
+        assert compare_featurized_states(actual, expected)
 
     expected_labels = np.array([[0, 15, 0, 12, 13, 0, 14]]).T
 
@@ -171,7 +165,7 @@ def test_featurize_trackers_with_max_history_tracker_featurizer(
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_featurize_trackers_ignore_action_unlikely_intent_max_history_featurizer(
+def test_featurize_trackers_ignore_action_unlikely_intent(
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
     max_history: Optional[int],
@@ -222,6 +216,7 @@ def test_featurize_trackers_ignore_action_unlikely_intent_max_history_featurizer
         expected_features = [x[-max_history:] for x in expected_features]
 
     assert actual_features is not None
+
     assert len(actual_features) == len(expected_features)
 
     for actual, expected in zip(actual_features, expected_features):
@@ -237,7 +232,7 @@ def test_featurize_trackers_ignore_action_unlikely_intent_max_history_featurizer
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_featurize_trackers_keep_action_unlikely_intent_max_history_featurizer(
+def test_featurize_trackers_keep_action_unlikely_intent(
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
     max_history: Optional[int],
@@ -313,7 +308,7 @@ def test_featurize_trackers_keep_action_unlikely_intent_max_history_featurizer(
     "remove_duplicates,max_history",
     [[True, None], [True, 2], [False, None], [False, 2],],
 )
-def test_deduplicate_featurize_trackers_with_max_history_tracker_featurizer(
+def test_deduplicate_and_featurize_trackers(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
@@ -433,8 +428,9 @@ def test_deduplicate_featurize_trackers_with_max_history_tracker_featurizer(
 ###  CREATE STATE FEATURES: featurization during inference
 
 """
+
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_create_state_features_with_max_history_tracker_featurizer(
+def test_create_state_features(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
@@ -482,7 +478,7 @@ def test_create_state_features_with_max_history_tracker_featurizer(
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_create_state_features_ignore_action_unlikely_intent_max_history_featurizer(
+def test_create_state_features_ignore_action_unlikely_intent(
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
     max_history: Optional[int],
@@ -544,7 +540,7 @@ def test_create_state_features_ignore_action_unlikely_intent_max_history_featuri
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_create_state_features_keep_action_unlikely_intent_max_history_featurizer(
+def test_create_state_features_keep_action_unlikely_intent(
     moodbot_domain: Domain,
     moodbot_features: Dict[Text, Dict[Text, Features]],
     max_history: Optional[int],
@@ -605,11 +601,11 @@ def test_create_state_features_keep_action_unlikely_intent_max_history_featurize
 
     for actual, expected in zip(actual_features, expected_features):
         assert compare_featurized_states(actual, expected)
+
 """
 
-
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_prediction_states_with_max_history_tracker_featurizer(
+def test_prediction_states(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     max_history: Optional[int],
@@ -661,7 +657,7 @@ def test_prediction_states_with_max_history_tracker_featurizer(
 
 
 @pytest.mark.parametrize("max_history", [None, 2])
-def test_prediction_states_hide_rule_states_with_max_history_tracker_featurizer(
+def test_prediction_states_hide_rule_states(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     max_history: Optional[int],
@@ -750,7 +746,7 @@ def test_prediction_states_hide_rule_states_with_max_history_tracker_featurizer(
 
 
 @pytest.mark.parametrize("max_history", [None, 3])
-def test_prediction_states_ignores_action_intent_unlikely_max_history_featurizer(
+def test_prediction_states_ignores_action_intent_unlikely(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     max_history: Optional[int],
@@ -816,7 +812,7 @@ def test_prediction_states_ignores_action_intent_unlikely_max_history_featurizer
 
 
 @pytest.mark.parametrize("max_history", [None, 3])
-def test_prediction_states_keeps_action_intent_unlikely_max_history_featurizer(
+def test_prediction_states_keeps_action_intent_unlikely(
     moodbot_tracker: DialogueStateTracker,
     moodbot_domain: Domain,
     max_history: Optional[int],

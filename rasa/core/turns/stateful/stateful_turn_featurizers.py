@@ -14,7 +14,7 @@ import scipy.sparse
 from rasa.core.turns.stateful.stateful_turn import StatefulTurn
 from rasa.core.turns.to_dataset.utils.feature_lookup import FeatureLookup
 from rasa.core.turns.to_dataset.utils.multihot_encoder import MultiHotEncoder
-from rasa.core.turns.to_dataset.dataset import TurnFeaturizer
+from rasa.core.turns.to_dataset.turn_sequences import TurnFeaturizer
 from rasa.shared.core.constants import ACTIVE_LOOP, PREVIOUS_ACTION, SLOTS, USER
 from rasa.shared.core.domain import Domain
 from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter, RegexInterpreter
@@ -44,7 +44,7 @@ class BasicStatefulTurnFeaturizer(TurnFeaturizer[StatefulTurn]):
     2. the attributes of all substates are mutually different.
     """
 
-    def train(
+    def _train(
         self, domain: Domain, interpreter: Optional[NaturalLanguageInterpreter]
     ) -> None:
         self._multihot_encoders = {
@@ -60,7 +60,6 @@ class BasicStatefulTurnFeaturizer(TurnFeaturizer[StatefulTurn]):
             ]
         }
         self._use_regex_interpreter = isinstance(interpreter, RegexInterpreter)
-        self._trained = True
 
     def featurize(
         self, turn: StatefulTurn, interpreter: NaturalLanguageInterpreter

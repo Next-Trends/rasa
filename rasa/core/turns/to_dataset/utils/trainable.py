@@ -8,6 +8,9 @@ class Trainable(ABC):
     def __init__(self) -> None:
         self._trained = False
 
+    def __str__(self):
+        return f"{self.__class__.__name__}(trained={self._trained})"
+
     def raise_if_not_trained(self, message: Text = "") -> None:
         if not self._trained:
             raise RuntimeError(

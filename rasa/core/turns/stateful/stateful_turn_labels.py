@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import copy
+from dataclasses import dataclass
 from abc import ABC
 from typing import (
     Any,
@@ -26,67 +29,67 @@ from rasa.shared.nlu.constants import (
 
 ACTION_NAME_OR_TEXT = "action_name_or_text"
 
-
-T = TypeVar("T")
+AttributeType = TypeVar("AttributeType")
 
 
 class ExtractAttributeFromLastUserTurn(
-    LabelFromTurnsExtractor[StatefulTurn, Tuple[Optional[Text], Optional[T]]], ABC
+    LabelFromTurnsExtractor[StatefulTurn, Tuple[Optional[Text], AttributeType]], ABC
 ):
     """Extracts an attribute from the user-substate of the last user turn.
 
     The information will be removed from the user sub-state of the last user turn
     and of all following turns.
 
-    Along with the attribute, the user text will be returned. However, the user text
-    will not be removed from any substate.
+    Along with the attribute, the user text will be returned. However, unlike the
+    extracted attribute, the user text will **not** be removed from any substate.
     """
 
     def __init__(self, attribute: Text) -> None:
         self._attribute = attribute
 
-    def __call__(
-        self, turns: List[StatefulTurn], training: bool = True,
-    ) -> Tuple[List[Turn], Tuple[Optional[Text], Optional[T]]]:
+    def extract(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
+    ) -> Tuple[List[Turn], Tuple[Optional[Text], Optional[AttributeType]]]:
         last_user_turn_idx = Turn.get_index_of_last_user_turn(turns)
-        if training and last_user_turn_idx is not None:
-            last_user_turn = turns[last_user_turn_idx]
-            state = last_user_turn.state.get(USER, {})
-            raw_info = (
-                last_user_turn.state.get(TEXT, None),
-                state.get(self._attribute, None),
-            )
-            # it is the last user turn, but the states in all subsequent bot turns
-            # contain information about the last user turn
-            for idx in range(last_user_turn_idx, len(turns)):
-                turns[idx].state.get(USER, {}).pop(self._attribute, None)
-
-        else:
-            raw_info = (None, None)
+        if last_user_turn_idx is None:
+            return turns, (None, None)
+        last_user_turn = turns[last_user_turn_idx]
+        state = last_user_turn.state.get(USER, {})
+        raw_info: Tuple[Optional[Text], Optional[AttributeType]] = (
+            last_user_turn.state.get(TEXT, None),
+            state.get(self._attribute, None),
+        )
+        # it is the last user turn, but the states in all subsequent bot turns
+        # contain information about the last user turn
+        for idx in range(last_user_turn_idx, len(turns)):
+            if not inplace_allowed:
+                turns[idx] = copy.deepcopy(turns[idx])
+            turns[idx].state.get(USER, {}).pop(self._attribute, None)
         return turns, raw_info
 
-    def from_domain(self, domain: Domain,) -> List[Tuple[Optional[Text], T]]:
+    def from_domain(self, domain: Domain,) -> List[Tuple[Optional[Text], AttributeType]]:
         raise NotImplementedError()
 
 
 class ExtractIntentFromLastUserTurn(LabelFromTurnsExtractor[StatefulTurn, Text]):
     """Extract the intent from the last user turn.
 
-    During training, the intent will be removed from the user sub-state of the last
-    user turn and of all following turns.
-    During inference, nothing will be removed.
+    The intent will be removed from the user sub-state of the last user turn and of
+    all following turns.
     """
 
     def __init__(self) -> None:
         self.extractor = ExtractAttributeFromLastUserTurn(attribute=INTENT)
 
-    def __call__(
-        self, turns: List[StatefulTurn], training: bool = True,
-    ) -> Tuple[List[Turn], Tuple[Optional[Text], T]]:
-        turns, (_, intent) = self.extractor(turns, training=training)
+    def extract(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
+    ) -> Tuple[List[Turn], Tuple[Optional[Text], Optional[Text]]]:
+        turns, (_, intent) = self.extractor.extract(
+            turns=turns, training=training, inplace_allowed=inplace_allowed
+        )
         return turns, intent
 
-    def from_domain(self, domain: Domain,) -> List[Text]:
+    def from_domain(self, domain: Domain,) -> List[str]:
         return domain.intents
 
 
@@ -95,63 +98,55 @@ class ExtractEntitiesFromLastUserTurn(
 ):
     """Extract the entities from the last user turn.
 
-    During training, the entities will be removed from the user sub-state of the
+    The entities will be removed from the user sub-state of the
     last user turn and of all following turns.
-    During inference, nothing will be removed.
     """
 
     def __init__(self) -> None:
         self.extractor = ExtractAttributeFromLastUserTurn(attribute=ENTITIES)
 
-    def __call__(
-        self, turns: List[StatefulTurn], training: bool = True,
+    def extract(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
     ) -> Tuple[List[Turn], Optional[Dict[Text, Any]]]:
-        turns, (_, entities) = self.extractor(turns, training=training)
-        return turns, entities
+        turns, (text, entities) = self.extractor.extract(
+            turns=turns, training=training, inplace_allowed=inplace_allowed
+        )
+        return turns, (text, entities)
+
+    def from_domain(self, domain: Domain,) -> List[Text]:
+        raise NotImplementedError()  # TODO get list of entities from domain
 
 
-class ExtractEntitiesAndTextFromLastUserTurn(
-    LabelFromTurnsExtractor[StatefulTurn, Tuple[Text, Dict[Text, Any]]]
-):
-    """Extract the entities from the last user turn, and also return the text.
-
-    During training, the entities will be removed from the user sub-state of the last
-    user turn and of all following turns. The text will *not* be removed from
-    any sub-state.
-    During inference, nothing will be removed.
-    """
-
-    def __init__(self) -> None:
-        self.extractor = ExtractAttributeFromLastUserTurn(attribute=ENTITIES)
-
-    def __call__(
-        self, turns: List[StatefulTurn], training: bool = True,
-    ) -> Tuple[List[Turn], Tuple[Optional[Text], T]]:
-        return self.extractor(turns, training=training)
-
-
+@dataclass
 class ExtractActionFromLastTurn(LabelFromTurnsExtractor[StatefulTurn, Text]):
-    """Extracts the action from the last turn and removes that turn.
+    """Extracts the action from the last turn.
 
-    During training, the last turn will be removed from the given sequence.
-    During inference, the turns remain unchanged.
+    If an action name or an action text exist, those will be returned (with action
+    names being chosen over action text - if both exist).
+    The complete action sub-state will be removed from the last turn afterwards.
+
+    Args:
+        remove_last_turn: set to True to remove the last turn completely
     """
 
-    def __call__(
-        self, turns: List[StatefulTurn], training: bool = True,
+    remove_last_turn: bool = False
+
+    def extract(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
     ) -> Tuple[List[StatefulTurn], Text]:
-        if training:
-            prev_action = turns[-1].state.get(PREVIOUS_ACTION, {})
-            # we prefer the action name but will use action text, if there is no name
-            action = prev_action.get(ACTION_NAME, None)
-            if not action:
-                action = prev_action.get(ACTION_TEXT, None)
-            if not action:
-                raise RuntimeError("There must be an action we can extract....")
-            # remove the whole turn
+        prev_action = turns[-1].state.get(PREVIOUS_ACTION, {})
+        # we prefer the action name but will use action text, if there is no name
+        action = prev_action.get(ACTION_NAME, None)
+        if not action:
+            action = prev_action.get(ACTION_TEXT, None)
+        if not action:
+            raise RuntimeError("There must be an action we can extract....")
+        if self.remove_last_turn:
             turns = turns[:-1]
         else:
-            action = ""
+            if not inplace_allowed:
+                turns[-1] = copy.deepcopy(turns[-1])
+            turns[-1].state.pop(PREVIOUS_ACTION, {})
         return turns, action
 
     def from_domain(self, domain: Domain,) -> List[Text]:

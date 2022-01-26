@@ -2,18 +2,18 @@ from typing import Generic, Optional, Text, List, Any, Dict, Tuple
 
 import numpy as np
 
-from rasa.core.turns.to_dataset.dataset import (
+from rasa.nlu.constants import TOKENS_NAMES
+from rasa.core.turns.to_dataset.dataset import TurnType
+from rasa.core.turns.to_dataset.labels import (
     LabelFeaturizer,
-    LabelFromTurnsExtractor,
     LabelIndexer,
     RawLabelType,
-    TurnType,
+    LabelFromTurnsExtractor,
 )
 from rasa.core.turns.to_dataset.utils.trainable import Trainable
 from rasa.core.turns.to_dataset.utils.entity_tags_encoder import EntityTagsEncoder
 from rasa.core.turns.to_dataset.utils.feature_lookup import FeatureLookup
 from rasa.core.turns.to_dataset.utils.multihot_encoder import MultiHotEncoder
-from rasa.nlu.constants import TOKENS_NAMES
 from rasa.shared.core.domain import Domain
 from rasa.shared.nlu.constants import ENTITY_TAGS, TEXT
 from rasa.shared.nlu.interpreter import NaturalLanguageInterpreter

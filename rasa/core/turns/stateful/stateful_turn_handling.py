@@ -5,7 +5,7 @@ import copy
 
 from rasa.core.turns.turn import Actor
 from rasa.core.turns.stateful.stateful_turn import StatefulTurn
-from rasa.core.turns.to_dataset.dataset import TurnSequenceModifier
+from rasa.core.turns.to_dataset.turn_sequences import TurnSequenceModifier
 from rasa.shared.core.constants import (
     ACTION_UNLIKELY_INTENT_NAME,
     PREVIOUS_ACTION,
@@ -18,9 +18,12 @@ from rasa.shared.nlu.constants import ACTION_NAME, ENTITIES, INTENT, TEXT
 class RemoveTurnsWithPrevActionUnlikelyIntent(TurnSequenceModifier[StatefulTurn]):
     """Remove turns where the previous action substate is an action unlikely intent."""
 
+    # TODO: is this really needed?
     switched_on: bool = True
 
-    def modify(self, turns: List[StatefulTurn], inplace: bool,) -> List[StatefulTurn]:
+    def modify(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool,
+    ) -> List[StatefulTurn]:
         if not self.switched_on:
             return turns
         return [
@@ -43,16 +46,18 @@ class IfLastTurnWasUserTurnKeepEitherTextOrNonText(TurnSequenceModifier[Stateful
 
     keep_text: bool = True
 
-    def modify(self, turns: List[StatefulTurn], inplace: bool,) -> List[StatefulTurn]:
+    def modify(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
+    ) -> List[StatefulTurn]:
 
         if turns and turns[-1].actor == Actor.USER:
             last_turn = turns[-1]
-            if not inplace:
+            if inplace_allowed:
                 last_turn = copy.deepcopy(last_turn)
             remove = [INTENT, ENTITIES] if self.keep_text else [TEXT]
             for key in remove:
                 last_turn.state.get(USER, {}).pop(key, None)
-            if not inplace:
+            if inplace_allowed:
                 turns[-1] = last_turn
         return turns
 
@@ -64,15 +69,17 @@ class RemoveUserTextIfIntentFromEveryTurn(TurnSequenceModifier[StatefulTurn]):
     This is always applied - during training as well as during inference.
     """
 
-    def modify(self, turns: List[StatefulTurn], inplace: bool) -> List[StatefulTurn]:
+    def modify(
+        self, turns: List[StatefulTurn], training: bool, inplace_allowed: bool
+    ) -> List[StatefulTurn]:
 
         for idx in range(len(turns)):
             turn = turns[idx]
-            if inplace:
+            if inplace_allowed:
                 turn = copy.deepcopy(turn)
             user_substate = turn.state.get(USER, {})
             if TEXT in user_substate and INTENT in user_substate:
                 del user_substate[TEXT]
-            if inplace:
+            if inplace_allowed:
                 turns[idx] = turn
         return turns
